@@ -1,0 +1,15 @@
+version: '3'
+services:
+  test:
+    network_mode: host
+    build: .
+
+#    environment:
+#      - MY_ENV_VARIABLE
+
+    volumes:
+      # This mounts the package into the /workspace directory
+      - .:/workspace
+
+    command: >
+      bash -c "source /workspace/ci/docker_wrapper.sh"

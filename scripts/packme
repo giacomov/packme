@@ -1,0 +1,174 @@
+#!/usr/bin/env python
+
+import argparse
+import sys
+import textwrap as _textwrap
+from ast import parse
+import warnings
+import os
+import shutil
+import json
+from jinja2 import Template
+
+from packme.package_data import get_path_of_data_file
+
+
+desc = """
+Create an empty python package with proper package structure, automatic testing and automatic docs already set up.|n
+
+Instructions:|n
+
+* Execute the `packme config [package name]` command. This will create a JSON file that you must edit to insert the 
+needed info.|n
+* Execute the `packme create [path to JSON file]` command to actually create the package|n
+
+You can get the help of each subcommand like this: `packme [subcommand] -h`
+"""
+
+
+class MultilineFormatter(argparse.HelpFormatter):
+
+    def _fill_text(self, text, width, indent):
+        text = self._whitespace_matcher.sub(' ', text).strip()
+        paragraphs = text.split('|n ')
+        multiline_text = ''
+        for paragraph in paragraphs:
+            formatted_paragraph = _textwrap.fill(paragraph, width, initial_indent=indent,
+                                                 subsequent_indent=indent) + '\n\n'
+            multiline_text = multiline_text + formatted_paragraph
+        return multiline_text
+
+
+def _is_valid_variable_name(name):
+
+    try:
+
+        parse('{} = None'.format(name))
+        return True
+
+    except (SyntaxError, ValueError, TypeError):
+
+        return False
+
+
+# sub-command functions
+def config_skeleton(args):
+
+    # Check pep-8
+    if not _is_valid_variable_name(args.package_name) or "_" in args.package_name or "-" in args.package_name:
+
+        warnings.warn(f"The package name {args.package_name} does not follow conventions. It might give you "
+                      f"problems down the road. Consider a simpler name, using only lower-case letters and numbers "
+                      f"(but not at the beginning). No symbols, hypens or underscores.")
+
+    # Copy JSON packme_skeleton into current directory
+    json_skeleton = get_path_of_data_file("packme", "package_definition.json")
+
+    # Expand template from packme_skeleton
+    with open(json_skeleton) as fp:
+
+        template = Template(fp.read())
+
+        skel = template.render(package_name=args.package_name)
+
+    # Write JSON file
+    json_out = os.path.abspath(os.path.expandvars(os.path.expanduser(f"{args.package_name}.json")))
+
+    if os.path.exists(json_out):
+
+        raise IOError(f"File {json_out} already exists")
+
+    with open(json_out, "w") as fp:
+
+        fp.write(skel)
+
+    print(f"Now edit the file {json_out} with your favorite text editor. When you are done, execute "
+          f"`packme create {json_out}`")
+
+
+def create_package(args):
+
+    # Open configuration file
+    with open(args.config_file, "r") as fp:
+
+        # Read the file stripping away the comments
+        config = json.loads("".join([line for line in fp.readlines() if line.find("//") < 0]))
+
+    pkg_name = config['package_name']
+
+    # Loop over the files in the packme_skeleton, expand the jinja2 variables and save them
+    # in the destination
+    skeleton_path = get_path_of_data_file("packme", "packme_skeleton")
+
+    for root, dirs, files in os.walk(skeleton_path):
+
+        # Extract directory path from the skeleton root
+        skel_dir_root = os.path.sep.join(root.split("packme_skeleton")[1:])
+
+        # __pycache__ directories are sometimes left behind by pip. Let's not copy them over
+        if skel_dir_root.find("__pycache__") >= 0:
+
+            continue
+
+        new_dir = os.path.join(pkg_name, os.path.basename(skel_dir_root))
+        os.makedirs(new_dir)
+
+        for file in files:
+
+            source_file = os.path.join(root, file)
+
+            # Open file in skeleton and expand template
+            with open(source_file, "r") as fp:
+
+                rendered_template = Template(fp.read()).render(config)
+
+            dest_file = source_file.replace(skeleton_path, pkg_name)
+
+            dest_dir = os.path.dirname(dest_file)
+
+            if not os.path.exists(dest_dir):
+
+                os.makedirs(dest_dir)
+
+            # Save rendered template at the right place in the new dir
+            with open(dest_file, "w") as fp:
+
+                fp.write(rendered_template)
+
+            #print(f"{source_file} -> {dest_file}")
+
+    # Change the directory _packagename to the name of the package
+    os.rename(os.path.join(pkg_name, "_packagename"),
+              os.path.join(pkg_name, pkg_name))
+
+
+if __name__ == "__main__":
+
+    # create the top-level parser
+    parser = argparse.ArgumentParser(description=desc, formatter_class=MultilineFormatter)
+    subparsers = parser.add_subparsers()
+
+    # create the parser for the "foo" command
+    parser_config = subparsers.add_parser('config')
+    parser_config.add_argument('package_name', type=str,
+                               help="Name of the package to be configured. Must adhere to PEP-8. Must start with a "
+                                    "letter, no symbols, numbers are allowed after the first letter. "
+                                    "Avoid upper case and underscores.")
+    parser_config.set_defaults(func=config_skeleton)
+
+    # create the parser for the "bar" command
+    parser_bar = subparsers.add_parser('create')
+    parser_bar.add_argument('config_file', help="Path to the config file created with the 'config' command.")
+    parser_bar.set_defaults(func=create_package)
+
+    # parse the args and call whatever function was selected
+    args = parser.parse_args()
+
+    if not hasattr(args, 'func'):
+
+        parser.print_help()
+        sys.exit(0)
+
+    else:
+
+        args.func(args)

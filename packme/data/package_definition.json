@@ -1,0 +1,31 @@
+{
+  // Name must follow PEP 8: all lower case, avoid underscores, must not be present already on pypy if you want to
+  // upload your package there
+  "package_name": "{{ package_name }}",
+  // Use your favorite versioning scheme. If in doubt, a good default is MAJOR.MINOR.PATCH
+  "package_version": "0.0.1",
+  // Author: this will be used in the
+  "author": "Donald Duck (donald@ducktales.com)",
+  // Copyright notice (this will only be used in the documentation. You can leave this empty if you do not want any
+  // copyright notice
+  "copyright_notice": "",
+  // This short description should be kept less than 10-15 words
+  "short_description": "A short description",
+  // This longer description will go in the README.md, so it can be longer
+  "description": "A longer description that will go in the README file",
+  // The homepage must be a URL. It can be the github repo for the package, or a website hosting the documentation
+  "homepage": "http://example.com",
+  // Classifiers are a list of strings specifying info about the package. See https://pypi.org/classifiers/ for a list
+  // of possibilities. These are some examples, feel free to remove/customize them.
+  "classifiers": ["Programming Language :: Python :: 3",
+                  "Development Status :: 4 - Beta"],
+  // List of dependencies. If you specify just a name of the package, that package will be downloaded from Pypy at
+  // installation time in its newest version. You can guide the version choice like this:
+  // "mypackage ==1.2" to force a specific version, "mypackage >=1.0" to force a minimum version, "mypackage <=2.0" to
+  // force a maximum version, "mypackage >=1.0, <=2.0" to force a range of allowed versions.
+  "dependencies": [],
+  // List of dependencies *for the setup script itself*. For example, if you are using cython and you are building the
+  // .pyx files as part of the installation process, than you need here "cython" (and probably also "numpy"). These
+  // dependencies will be installed before the setup is run.
+  "setup_dependencies": []
+}
